@@ -48,29 +48,26 @@ def get_int_points_in_polygon(vertices : np.ndarray) -> np.ndarray:
     return [candidates[i] for i in range(len(candidates)) if is_inside[i]]
 
 
-class Lattice:
-    def __init__(self, dimension : int, basis : np.ndarray):
+class Lattice2D:
+    def __init__(self, basis : np.ndarray, offset : np.ndarray):
         """
-        The `Lattice` class represents a lattice with dimension `dimension` defined by `basis`, a set of column basis vectors.
+        Points in space can be represented in two ways, either as a coordinate in standard space,
+        which is defined by the standard unit vectors, or as a coordinate in lattice space, which
+        is defined by `basis`. This class provides methods to convert between the two.
 
-        Points in space can be represented in two ways, either as a coordinate in standard space, which is defined by
-        the standard unit vectors, or as a coordinate in lattice space, which is defined by `basis`. This class provides
-        methods to convert between the two representations.
+        The `Lattice2D` class represents a 2D lattice defined by `basis`, a set of column basis
+        vectors, and `offset`, the position in the standard space of the 00 lattice point.
 
-        Points whose lattice coordinate representation consists of only integers are considered valid lattice points.
+        Points whose lattice coordinate representation consists of only integers are considered
+        valid lattice points.
         """
-        assert len(basis) == dimension, f"Number of basis vectors must match dimension. {len(basis)} vectors with dimension {dimension}."
+        assert len(basis) == 2, f"{len(basis)} basis vectors provided, while 2 required."
         for vector in basis:
-            assert(len(vector)) == dimension, f"Length of basis vector must match dimension. {vector} has {len(vector)} coordinates with dimension {dimension}."
+            assert(len(vector)) == 2, f"Length of basis vector {vector} must be 2. Was {len(vector)}"
 
-        self.dimension = dimension
         self.basis = np.array(basis)
         self.mat_lat_to_std = self.basis.transpose()
         self.mat_std_to_lat = np.linalg.inv(self.basis.transpose())
-        
-    def get_dimension(self):
-        """Returns the dimension of this lattice."""
-        return self.dimension
 
     def get_basis(self):
         """Returns the basis vectors of this lattice."""
@@ -96,16 +93,6 @@ class Lattice:
     
     def validate_basis(self, other_basis):
         raise NotImplementedError()
-    
-
-class Lattice_2D(Lattice):
-    def __init__(self, basis):
-        super().__init__(2, basis)
-
-
-class Lattice_3D(Lattice):
-    def __init__(self, basis):
-        super().__init__(3, basis)
 
 def main():
     # initialize window
@@ -136,7 +123,8 @@ def main():
 
     # set up the sidebar
     num_lattices = 4
-    for i in range(num_lattices): sidebar.rowconfigure(i, weight=1)
+    for i in range(num_lattices):
+        sidebar.rowconfigure(i, weight=1)
     sidebar.columnconfigure(0, weight=1)
 
     lattice_buttons = []
@@ -145,7 +133,9 @@ def main():
         lattice_buttons[i].grid(row=i, column=0, sticky=tk.NSEW)
 
     # set up the config
+    config.rowconfigure
     # title: Lattice #
+
 
     # set up the graph
     graph.rowconfigure(0, weight=1)
