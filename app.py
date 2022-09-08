@@ -109,20 +109,48 @@ class Lattice_3D(Lattice):
         
 
 def main():
+    # initialize window
+    WIDTH, HEIGHT = 1280, 720
     window = tk.Tk()
     window.title("lattice-visualizer")
-    window.geometry("1280x720")
+    window.geometry(f"{WIDTH}x{HEIGHT}")
 
-    
+    # set up window's grid layout
+    window.rowconfigure(0, weight=1)
+    window.columnconfigure(0, weight=3)
+    window.columnconfigure(1, weight=22)
+    window.columnconfigure(2, weight=75)
 
-    fig = mpl.figure.Figure(figsize=(16, 9), dpi=100)
+    # set up and grid the three main containers
+    sidebar = tk.Frame(window, bg="orange")
+    sidebar.grid(row=0, column=0, sticky=tk.NSEW)
+
+    config = tk.Frame(window, width=20, bg="blue")
+    config.grid(row=0, column=1, sticky=tk.NSEW)
+
+    graph = tk.Frame(window, bg="red")
+    graph.grid(row=0, column=2, sticky=tk.NSEW)
+
+    # set up the sidebar
+    num_lattices = 4
+    for i in range(num_lattices): sidebar.rowconfigure(i, weight=1)
+    sidebar.columnconfigure(0, weight=1)
+
+    lattice_buttons = []
+    for i in range(num_lattices):
+        lattice_buttons.append(tk.Button(sidebar, text=f"{i + 1}"))
+        lattice_buttons[i].grid(row=i, column=0, sticky=tk.NSEW)
+
+    # set up the config
+
+    # set up the graph
+    fig = mpl.figure.Figure(dpi=100)
     ax = fig.add_subplot(111)
     ax.grid(linestyle="dashed")
 
-
-    figcanvas = FigureCanvasTkAgg(fig, window)
+    figcanvas = FigureCanvasTkAgg(fig, master=graph)
     figcanvas.draw()
-    figcanvas.get_tk_widget().pack()
+    #figcanvas.get_tk_widget().pack()
 
     # toolbar = NavigationToolbar2Tk(fig, window)
     # toolbar.update()
