@@ -106,7 +106,6 @@ class Lattice_2D(Lattice):
 class Lattice_3D(Lattice):
     def __init__(self, basis):
         super().__init__(3, basis)
-        
 
 def main():
     # initialize window
@@ -114,6 +113,7 @@ def main():
     window = tk.Tk()
     window.title("lattice-visualizer")
     window.geometry(f"{WIDTH}x{HEIGHT}")
+    window.resizable(False, False)
 
     # set up window's grid layout
     window.rowconfigure(0, weight=1)
@@ -122,13 +122,16 @@ def main():
     window.columnconfigure(2, weight=75)
 
     # set up and grid the three main containers
-    sidebar = tk.Frame(window, bg="orange")
+    sidebar = tk.Frame(window)
+    sidebar.grid_propagate(False)
     sidebar.grid(row=0, column=0, sticky=tk.NSEW)
 
-    config = tk.Frame(window, width=20, bg="blue")
+    config = tk.Frame(window, bg="blue")
+    config.grid_propagate(False)
     config.grid(row=0, column=1, sticky=tk.NSEW)
 
-    graph = tk.Frame(window, bg="red")
+    graph = tk.Frame(window)
+    graph.grid_propagate(False)
     graph.grid(row=0, column=2, sticky=tk.NSEW)
 
     # set up the sidebar
@@ -142,15 +145,20 @@ def main():
         lattice_buttons[i].grid(row=i, column=0, sticky=tk.NSEW)
 
     # set up the config
+    # title: Lattice #
 
     # set up the graph
+    graph.rowconfigure(0, weight=1)
+    graph.columnconfigure(0, weight=1)
+
     fig = mpl.figure.Figure(dpi=100)
+    fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
     ax = fig.add_subplot(111)
     ax.grid(linestyle="dashed")
 
     figcanvas = FigureCanvasTkAgg(fig, master=graph)
     figcanvas.draw()
-    #figcanvas.get_tk_widget().pack()
+    figcanvas.get_tk_widget().grid(row=0, column=0, sticky=tk.NSEW)
 
     # toolbar = NavigationToolbar2Tk(fig, window)
     # toolbar.update()
