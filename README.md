@@ -19,15 +19,9 @@ The user first defines a lattice L by providing the two basis vectors $a$ and $b
 
 Next, the user defines a region R in the standard space in one of two ways: either by providing a list of vertices which describe a polygon, or by providing a radius and center point for a circular region.
 
-Finally, the user chooses a color for the lattice points. At this point, the application can then plot all valid lattice points of L which lie within R. The user can toggle on/off a display of the lattice's basis vectors.
+Finally, the user chooses a color for the lattice points. At this point, the application can then plot all valid lattice points of L which lie within R. The area of the primitive unit cell will be displayed. The user can toggle on/off a display of the lattice's basis vectors.
 
 A total of four different lattices can be plotted at one time.
-
-## Axis Settings
-The user can toggle gridlines on/off and set the viewing region (axis bounds).
-
-## Graph Options
-The user can left-click on lattice points to toggle highlighting them and displaying their lattice coordinates. The user can right-click on lattice points to toggle a vector decomposition for the point, which shows how the basis vectors can be added to obtain that point.
 
 ## Wigner-Seitz Cell
 The Wigner-Seitz cell is defined as the set of points which are closer to the lattice point $00$ than they are to any other lattice point. This set is a primitive unit cell because it contains just 1 lattice point ($00$) and can completely tile the lattice plane with no gaps nor overlaps. There is a very simple construction which can be used to find the vertices of this cell, which is explained below.
@@ -64,4 +58,5 @@ The user can generate and plot the Wigner-Seitz cell for any lattice, as well as
 - Lattice transformations
 - Lattice symmetries
 - Loading/saving views
-- Area of standard primitive lattice cells
+- The user can left-click on lattice points to toggle highlighting them and displaying their lattice coordinates.
+- The user can right-click on lattice points to toggle a vector decomposition for the point, which shows how the basis vectors can be added to obtain that point.

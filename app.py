@@ -8,15 +8,26 @@ import tkinter as tk
 import matplotlib as mpl
 import numpy as np
 
-from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.animation import FuncAnimation
 
-def polygon_area(x : list[float], y : list[float]) -> float:
-    """
-    Given the vertices of a polygon (defined in two lists of `x` coords and `y` coords), finds the
-    area of a polygon using the Shoelace formula. From https://stackoverflow.com/a/30408825
-    """
-    # TODO: understand how this works
-    return 0.5*np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+NUM_LATTICES = 4
+
+def polygon_area(vertices : np.ndarray) -> float:
+        """
+        Given the vertices of a polygon, finds the area of a polygon using the Shoelace formula.
+        From https://stackoverflow.com/a/30408825
+        """
+        x, y = zip(*vertices) # interesting fact: zip is basically its own inverse
+        return 0.5*np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+
+def get_circle_bbox(center, radius):
+    """Returns the vertices of a rectangle that most closely contains the specified circle."""
+    x_min = center[0] - radius
+    x_max = center[0] + radius
+    y_min = center[1] - radius
+    y_max = center[1] + radius
+    return (x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)
 
 def get_int_points_in_polygon(vertices : np.ndarray) -> np.ndarray:
     """
@@ -36,7 +47,7 @@ def get_int_points_in_polygon(vertices : np.ndarray) -> np.ndarray:
 
     # get all possible points with integer coordinates inside of the rectangular region which most
     # tightly bounds the provided polygon by finding the cartesian product of the x and y ranges
-    candidates = itertools.product(range(*x_range), range(*y_range))
+    candidates = list(itertools.product(range(*x_range), range(*y_range)))
 
     # a mpl object which can be used to find whether points are inside of a polygon
     polygon = mpl.path.Path(vertices)
@@ -46,33 +57,99 @@ def get_int_points_in_polygon(vertices : np.ndarray) -> np.ndarray:
 
     # get a list of the candidates which are inside of the polygon via array compression
     return [candidates[i] for i in range(len(candidates)) if is_inside[i]]
+    
+class LatticePlot:
+    
+    # bounds enum
+    POLYGONAL_BOUNDS = 0
+    RADIAL_BOUNDS = 1
 
+    # zordering:
+    # 0: Wigner-Seitz cell
+    # 1: Wigner-Seitz lines
+    # 2: Wigner-Seitz intersection points
+    # 3: Basis vectors
+    # 4: Lattice points
+    # 5: Axis Origin
+    
+    def __init__(self, ax):
+        """Initializes the lattice to all None values."""
+        self.ax = ax
+        self.first_time_setup = True
 
-class Lattice2D:
-    def __init__(self, basis : np.ndarray, offset : np.ndarray):
-        """
-        Points in space can be represented in two ways, either as a coordinate in standard space,
-        which is defined by the standard unit vectors, or as a coordinate in lattice space, which
-        is defined by `basis`. This class provides methods to convert between the two.
+        self.basis = None
+        self.offset = None
+        self.mat_lat_to_std = None
+        self.mat_std_to_lat = None
+        self.bounds = None
+        self.bounds_type = None
+        self.point_color = None
 
-        The `Lattice2D` class represents a 2D lattice defined by `basis`, a set of column basis
-        vectors, and `offset`, the position in the standard space of the 00 lattice point.
+    def generate_lattice(self):
+        # Calculate lattice points
+        if self.bounds_type == LatticePlot.RADIAL_BOUNDS:
+            vertices = get_circle_bbox(self.bounds["center"], self.bounds["radius"])
+            vertices = self.trans_std_to_lat(vertices)
+            candidates = get_int_points_in_polygon(vertices)
+            lattice_points = []
+            for point in candidates:
+                if np.linalg.norm(np.array(point) - self.offset) < self.bounds["radius"]:
+                    lattice_points.append(point)
+            lattice_points = self.trans_lat_to_std(lattice_points)
+        elif self.bounds_type == LatticePlot.POLYGONAL_BOUNDS:
+            vertices = self.trans_std_to_lat(self.bounds)
+            lattice_points = get_int_points_in_polygon(vertices)
+            lattice_points = self.trans_lat_to_std(lattice_points)
+        else: raise Exception("No bounds type selected.")
+        self.lattice_points = lattice_points
 
-        Points whose lattice coordinate representation consists of only integers are considered
-        valid lattice points.
-        """
-        # Safety first!
-        assert len(basis) == 2, f"{len(basis)} basis vectors provided, while 2 required."
-        for vector in basis:
-            assert(len(vector)) == 2, f"Length of basis vector {vector} must be 2. Was {len(vector)}"
+        self.lattice = self.ax.plot(*zip(*lattice_points), f"{self.color} .")
 
+        # if self.first_time_setup:
+        #     #v1 = self.ax.quiver(0, 0, *self.basis[0], color='turquoise', scale_units='xy', scale=1, zorder=3)
+        #     #v2 = self.ax.quiver(0, 0, *self.basis[1], color='orange', scale_units='xy', scale=1, zorder=3)
+        #     #self.basis_arrows = [v1, v2]
+        #     self.lattice_points = self.ax.plot(, zorder=4)[0]
+            
+        #     #self.ws_points = self.ax.plot([np.nan], [np.nan], zorder=2)[0]
+        #     self.first_time_setup = False
+        # else:
+        #     # create basis vectors
+        #     #self.basis_arrows[0].set_UVC(*self.basis[0], "b")
+        #     #self.basis_arrows[1].set_UVC(*self.basis[1], "r")
+
+        #     # create lattice points
+
+        #     # create Wigner-Seitz cell
+        #     pass
+
+    def set_basis(self, basis):
+        """Sets the basis of this lattice."""
         self.basis = np.array(basis)
         self.mat_lat_to_std = self.basis.transpose()
         self.mat_std_to_lat = np.linalg.inv(self.basis.transpose())
 
-    def get_basis(self):
-        """Returns the basis vectors of this lattice."""
-        return self.basis
+    def set_offset(self, offset):
+        """Sets the 00 offset of this lattice."""
+        self.offset = np.array(offset)
+
+    def set_color(self, color):
+        """Sets the color of this lattice."""
+        self.color = color
+
+    def set_bounds_polygonal(self, vertices):
+        """Sets the bounds of this plotted lattice using a polygonal scheme."""
+        self.bounds = vertices
+        self.bounds_type = LatticePlot.POLYGONAL_BOUNDS
+
+    def set_bounds_radial(self, radius, center):
+        """Sets the bounds of this plotted lattice using a radial scheme."""
+        self.bounds = {"radius" : radius, "center" : center}
+        self.bounds_type = LatticePlot.RADIAL_BOUNDS
+
+    def set_point_color(self, color):
+        """Sets the color of this lattice's points."""
+        self.color = color
 
     def trans_lat_to_std(self, lat_points : list[np.ndarray]):
         """Transforms a point in lattice coordinates to its standard coordinates representation."""
@@ -88,16 +165,20 @@ class Lattice2D:
         consists of only integers. Due to the transformation required, some cases may fail due to
         floating-point issues.
         """
-        # if a number equals its floor, it's an integer
+        # if n = floor(n), n is an int
         lat_points = np.array(self.trans_std_to_lat(std_points))
         return [all(point) for point in lat_points == np.floor(lat_points)]
 
-    def get_
+    def get_unit_cell_area(self):
+        """Returns the area of the primitive unit cell."""
+        return np.linalg.norm(np.cross(*self.basis))
 
-    def generate_wigner_seitz_lines(u : tuple[float, float], v : tuple[float, float]) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+    def update(self):
+        pass
+
+    def generate_wigner_seitz_lines(self):
         """
-        Given the two basis vectors u and v of the lattice, returns a list of line segments which
-        border the Wigner Seitz cell.
+        Returns a list of lines which border the Wigner Seitz cell.
         """
         P_N_to_S = lambda point: transform_point_N_to_S(u, v, point)
 
@@ -144,7 +225,7 @@ class Lattice2D:
 
         return lines
 
-    def get_wigner_seitz_vertices(lines : list[tuple[tuple[float, float], tuple[float, float]]]) -> list[tuple[float, float]]:
+def get_wigner_seitz_vertices(lines : list[tuple[tuple[float, float], tuple[float, float]]]) -> list[tuple[float, float]]:
         """
         Given a list of lines describing a Wigner-Seitz cell, returns the vertices of the cell. Assumes
         that the lines are given in sequential order, because it finds the vertices by finding the
@@ -188,16 +269,62 @@ class Lattice2D:
             vx.append(vertex[0])
             vy.append(vertex[1])
         return vx, vy
-    
-class LatticePlot:
-    def __init__():
-        pass
-
 
 
 class AxesManager:
-    def __init__():
+    def __init__(self, fig, toolbar):
+        # Configure toolbar
+        self.toolbar = toolbar
+        self.toolbar._Spacer()
+        self.toolbar._Button("Toggle grid lines", None, True, self.toggle_grid_visibility)
+        self.toolbar._Spacer()
+        self.toolbar._Button("Toggle origin", None, True, self.toggle_origin)
+        # Set up figure
+        self.fig = fig
+        self.fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+        # Set up axes, grid, and origin point
+        self.ax = fig.add_subplot(111)
+        self.ax.grid(linestyle="dashed")
+        self.grid_visibility = False
+        self.ax.grid(visible=self.grid_visibility)
+        self.origin_visibility = False
+        self.origin_point = self.ax.plot([0], [0], "k .", zorder=5, visible=self.origin_visibility)[0]
+        # Set up animation
+        self.ani = FuncAnimation(fig, self.update, blit=False)
+
+        # Set up lattices
+        self.lattice_plots = []
+        for i in range(NUM_LATTICES):
+            self.lattice_plots.append(LatticePlot(self.ax))
+        
+        # testing zone
+        self.lattice_plots[0].set_basis([(1, 0), (0, 1)])
+        self.lattice_plots[0].set_offset([0, 0])
+        self.lattice_plots[0].set_color("b")
+        self.lattice_plots[0].set_bounds_radial(3, (0, 0))
+        self.lattice_plots[0].generate_lattice()
+
+        self.lattice_plots[1].set_basis([(1, 1), (-1, 1)])
+        self.lattice_plots[1].set_offset([0, 0])
+        self.lattice_plots[1].set_color("r")
+        self.lattice_plots[1].set_bounds_radial(5, (0, 0))
+        self.lattice_plots[1].generate_lattice()
+
+    def toggle_grid_visibility(self):
+        self.grid_visibility = not self.grid_visibility
+        self.ax.grid(visible=self.grid_visibility)
+
+    def toggle_origin(self):
+        self.origin_visibility = not self.origin_visibility
+        self.origin_point.set_visible(self.origin_visibility)
+
+    def update(self, frame):
         pass
+
+
+class LatticeConfig():
+    pass
+    
 
 def main():
     # initialize window
@@ -226,39 +353,32 @@ def main():
     graph.grid_propagate(False)
     graph.grid(row=0, column=2, sticky=tk.NSEW)
 
+    # set up the graph, figure, toolmbar, and manager
+    graph.rowconfigure(0, weight=1)
+    graph.columnconfigure(0, weight=1)
+    fig = mpl.figure.Figure(dpi=100)
+    figcanvas = FigureCanvasTkAgg(fig, master=graph)
+    figcanvas.draw()
+    figcanvas.get_tk_widget().grid(row=0, column=0, sticky=tk.NSEW)
+    toolbar_frame = tk.Frame(graph)
+    toolbar_frame.grid(row=1, column=0, sticky=tk.NSEW)
+    toolbar = NavigationToolbar2Tk(figcanvas, toolbar_frame)
+    axes_manager = AxesManager(fig, toolbar)
+
+    # set up the config
+    # config.rowconfigure
+    # title: Lattice #
+
     # set up the sidebar
-    num_lattices = 4
-    for i in range(num_lattices):
+    for i in range(NUM_LATTICES):
         sidebar.rowconfigure(i, weight=1)
     sidebar.columnconfigure(0, weight=1)
 
     lattice_buttons = []
-    for i in range(num_lattices):
+    for i in range(NUM_LATTICES):
         lattice_buttons.append(tk.Button(sidebar, text=f"{i + 1}"))
         lattice_buttons[i].grid(row=i, column=0, sticky=tk.NSEW)
 
-    # set up the config
-    config.rowconfigure
-    # title: Lattice #
-
-
-    # set up the graph
-    graph.rowconfigure(0, weight=1)
-    graph.columnconfigure(0, weight=1)
-
-    fig = mpl.figure.Figure(dpi=100)
-    fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
-    ax = fig.add_subplot(111)
-    ax.grid(linestyle="dashed")
-
-    figcanvas = FigureCanvasTkAgg(fig, master=graph)
-    figcanvas.draw()
-    figcanvas.get_tk_widget().grid(row=0, column=0, sticky=tk.NSEW)
-
-    # toolbar = NavigationToolbar2Tk(fig, window)
-    # toolbar.update()
-    # toolbar.get_tk_widget().pack()
-    
     window.mainloop()
 
 
